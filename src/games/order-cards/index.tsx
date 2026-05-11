@@ -143,6 +143,7 @@ function OrderCardsPlay({
   const pendingLayoutAnimation = useRef<Record<string, Box>>({});
   const pendingChoiceRowHeight = useRef<number | null>(null);
   const moveTimer = useRef<number | null>(null);
+  const clearMovingCardFrame = useRef<number | null>(null);
   const isPreparingMove = useRef(false);
 
   useEffect(() => {
@@ -178,6 +179,10 @@ function OrderCardsPlay({
       alive = false;
       if (moveTimer.current) {
         window.clearTimeout(moveTimer.current);
+      }
+
+      if (clearMovingCardFrame.current) {
+        window.cancelAnimationFrame(clearMovingCardFrame.current);
       }
     };
   }, [levelId, restartSeed]);
@@ -282,7 +287,7 @@ function OrderCardsPlay({
       pendingChoiceRowHeight.current = choiceRowRef.current?.getBoundingClientRect().height ?? null;
       const nextSelected = [...selected, card].sort((left, right) => left.order - right.order);
       setSelected(nextSelected);
-      setMovingCard(null);
+      clearMovingCardAfterPaint(Boolean(sourceRect && targetRect));
 
       if (nextSelected.length === level.cards.length) {
         markLevelCompleted(game.id, level.id);
@@ -317,6 +322,24 @@ function OrderCardsPlay({
 
     isPreparingMove.current = false;
     moveTimer.current = window.setTimeout(finishMove, 360);
+  };
+
+  const clearMovingCardAfterPaint = (hasAnimatedOverlay: boolean) => {
+    if (!hasAnimatedOverlay) {
+      setMovingCard(null);
+      return;
+    }
+
+    if (clearMovingCardFrame.current) {
+      window.cancelAnimationFrame(clearMovingCardFrame.current);
+    }
+
+    clearMovingCardFrame.current = window.requestAnimationFrame(() => {
+      clearMovingCardFrame.current = window.requestAnimationFrame(() => {
+        setMovingCard(null);
+        clearMovingCardFrame.current = null;
+      });
+    });
   };
 
   const captureRemainingCardRects = (removedCardId: string) => {
@@ -606,6 +629,10 @@ function shuffleCards(cards: RuntimeCard[], seed: string) {
     state = (state * 1664525 + 1013904223) >>> 0;
     const swapIndex = state % (index + 1);
     [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  if (next.length > 1 && next.every((card, index) => card.id === cards[index].id)) {
+    [next[0], next[1]] = [next[1], next[0]];
   }
 
   return next;
