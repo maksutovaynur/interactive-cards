@@ -2,7 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import { loadImageInfo, makeRuntimeAssetUrl } from '../../runtimeAssets';
 import { clampZoom, getGameZoom, markLevelCompleted, setGameZoom } from '../../storage';
 import type { DiscoverLevelsOptions, DiscoveredLevel, GamePlugin, RuntimeCard } from '../../types';
+import { orderCardsManifest } from './manifest.generated';
 import { playFailedStepSound, playLevelCompleteSound, playSuccessStepSound } from './sounds';
+
+declare const __USE_LEVEL_MANIFEST__: boolean;
 
 const gameId = 'order-cards';
 const levelsRoot = 'games/order-cards/levels';
@@ -23,6 +26,11 @@ export const orderCardsGame: GamePlugin = {
 };
 
 async function discoverLevels(options?: DiscoverLevelsOptions): Promise<DiscoveredLevel[]> {
+  if (__USE_LEVEL_MANIFEST__) {
+    orderCardsManifest.forEach((level) => options?.onLevel?.(level));
+    return orderCardsManifest;
+  }
+
   const levels: DiscoveredLevel[] = [];
 
   for (let levelIndex = 1; levelIndex <= maxLevels; levelIndex += 1) {
@@ -41,6 +49,10 @@ async function discoverLevels(options?: DiscoverLevelsOptions): Promise<Discover
 }
 
 async function loadLevel(levelId: string, levelIndex: number): Promise<DiscoveredLevel | null> {
+  if (__USE_LEVEL_MANIFEST__) {
+    return orderCardsManifest.find((level) => level.id === levelId) ?? null;
+  }
+
   const firstCard = await findFirstCard(levelId);
 
   if (!firstCard) {
@@ -79,6 +91,15 @@ async function findAdjacentLevels(levelId: string) {
   const levelNumber = parseLevelNumber(levelId);
   const previousLevelId = levelNumber > 1 ? formatNumber(levelNumber - 1) : null;
   const nextLevelId = formatNumber(levelNumber + 1);
+
+  if (__USE_LEVEL_MANIFEST__) {
+    const knownLevelIds = new Set(orderCardsManifest.map((level) => level.id));
+
+    return {
+      previousLevelId: previousLevelId && knownLevelIds.has(previousLevelId) ? previousLevelId : null,
+      nextLevelId: knownLevelIds.has(nextLevelId) ? nextLevelId : null,
+    };
+  }
 
   const [hasPreviousLevel, hasNextLevel] = await Promise.all([
     previousLevelId ? hasLevel(previousLevelId) : Promise.resolve(false),
@@ -375,7 +396,7 @@ function OrderCardsPlay({
         </div>
       </header>
 
-      {isLoading ? <p class="state-text">Готовим картинки...</p> : null}
+      {isLoading ? <LevelLoader /> : null}
 
       {!isLoading && !level ? <p class="state-text">Уровень не найден.</p> : null}
 
@@ -462,6 +483,19 @@ function Celebration() {
       ))}
       <span class="celebration-ribbon ribbon-left" />
       <span class="celebration-ribbon ribbon-right" />
+    </div>
+  );
+}
+
+function LevelLoader() {
+  return (
+    <div class="level-loader" role="status" aria-live="polite">
+      <div class="loader-cards" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <p>Готовим картинки...</p>
     </div>
   );
 }

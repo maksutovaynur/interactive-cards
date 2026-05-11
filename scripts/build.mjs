@@ -8,6 +8,14 @@ if (!['github', 'standalone'].includes(target)) {
 }
 
 const command = process.platform === 'win32' ? 'rsbuild.cmd' : 'rsbuild';
+const manifestResult = spawnSync(process.execPath, ['scripts/generate-order-cards-manifest.mjs'], {
+  stdio: 'inherit',
+});
+
+if (manifestResult.status !== 0) {
+  process.exit(manifestResult.status ?? 1);
+}
+
 const result = spawnSync(command, ['build'], {
   stdio: 'inherit',
   env: {

@@ -85,6 +85,11 @@ h1 {
     box-shadow 160ms ease;
 }
 
+.level-tile {
+  grid-template-rows: 174px auto auto auto;
+  align-content: start;
+}
+
 .game-tile:hover,
 .level-tile:hover,
 .game-tile:focus-visible,
@@ -223,6 +228,7 @@ h1 {
 
 .level-tile img {
   width: 100%;
+  height: 174px;
   object-fit: contain;
   border-radius: 8px;
   background: #f7fbf9;
@@ -252,6 +258,55 @@ h1 {
   color: #4e6266;
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+.level-loader {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  color: #4e6266;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.level-loader p {
+  margin: 0;
+}
+
+.loader-cards {
+  position: relative;
+  width: 112px;
+  height: 88px;
+}
+
+.loader-cards span {
+  position: absolute;
+  top: 14px;
+  left: 30px;
+  width: 54px;
+  height: 68px;
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+  background: #ffcf5a;
+  box-shadow: 0 10px 20px rgba(31, 44, 47, 0.16);
+  transform-origin: 50% 80%;
+  animation: loader-card-dance 1.35s ease-in-out infinite;
+}
+
+.loader-cards span:nth-child(1) {
+  background: #7bdcb5;
+  animation-delay: -0.28s;
+}
+
+.loader-cards span:nth-child(2) {
+  background: #88c0d0;
+  animation-delay: -0.14s;
+}
+
+.loader-cards span:nth-child(3) {
+  background: #ff9aa2;
 }
 
 .play-shell {
@@ -465,6 +520,21 @@ h1 {
 
   to {
     transform: translate3d(var(--move-x), var(--move-y), 0) scale(var(--scale-x), var(--scale-y)) rotate(0deg);
+  }
+}
+
+@keyframes loader-card-dance {
+  0%,
+  100% {
+    transform: translateX(-26px) translateY(6px) rotate(-12deg);
+  }
+
+  33% {
+    transform: translateX(0) translateY(-10px) rotate(4deg);
+  }
+
+  66% {
+    transform: translateX(26px) translateY(6px) rotate(12deg);
   }
 }
 

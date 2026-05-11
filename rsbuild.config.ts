@@ -16,6 +16,9 @@ export default defineConfig({
     entry: {
       index: './src/main.tsx',
     },
+    define: {
+      __USE_LEVEL_MANIFEST__: JSON.stringify(target === 'github'),
+    },
   },
   output: {
     assetPrefix: './',
