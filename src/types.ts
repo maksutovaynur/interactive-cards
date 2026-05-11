@@ -28,13 +28,17 @@ export type GamePlugin = {
   description: string;
   icon: string;
   progress: GameProgressMode;
-  discoverLevels: () => Promise<DiscoveredLevel[]>;
+  discoverLevels: (options?: DiscoverLevelsOptions) => Promise<DiscoveredLevel[]>;
   Play: ComponentType<{
     game: GamePlugin;
     levelId: string;
     onBack: () => void;
     onOpenLevel: (levelId: string) => void;
   }>;
+};
+
+export type DiscoverLevelsOptions = {
+  onLevel?: (level: DiscoveredLevel) => void;
 };
 
 export type RouteState = {

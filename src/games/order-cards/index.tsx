@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { loadImageInfo, makeRuntimeAssetUrl } from '../../runtimeAssets';
 import { clampZoom, getGameZoom, markLevelCompleted, setGameZoom } from '../../storage';
-import type { DiscoveredLevel, GamePlugin, RuntimeCard } from '../../types';
+import type { DiscoverLevelsOptions, DiscoveredLevel, GamePlugin, RuntimeCard } from '../../types';
 import { playFailedStepSound, playLevelCompleteSound, playSuccessStepSound } from './sounds';
 
 const gameId = 'order-cards';
@@ -22,46 +22,77 @@ export const orderCardsGame: GamePlugin = {
   Play: OrderCardsPlay,
 };
 
-async function discoverLevels(): Promise<DiscoveredLevel[]> {
+async function discoverLevels(options?: DiscoverLevelsOptions): Promise<DiscoveredLevel[]> {
   const levels: DiscoveredLevel[] = [];
 
   for (let levelIndex = 1; levelIndex <= maxLevels; levelIndex += 1) {
     const levelId = formatNumber(levelIndex);
-    const firstCard = await findFirstCard(levelId);
+    const level = await loadLevel(levelId, levelIndex);
 
-    if (!firstCard) {
+    if (!level) {
       break;
     }
 
-    const cards: RuntimeCard[] = [];
-
-    for (let cardIndex = 1; cardIndex <= maxCards; cardIndex += 1) {
-      const imageUrl = makeCardUrl(levelId, cardIndex, firstCard.filenameWidth);
-      const imageInfo = cardIndex === 1 ? firstCard.imageInfo : await loadImageInfo(imageUrl);
-
-      if (!imageInfo) {
-        break;
-      }
-
-      cards.push({
-        id: formatNumber(cardIndex),
-        order: cardIndex,
-        imageUrl,
-        width: imageInfo.width,
-        height: imageInfo.height,
-      });
-    }
-
-    levels.push({
-      id: levelId,
-      title: `Уровень ${levelIndex}`,
-      previewUrl: firstCard.imageUrl,
-      aspectRatio: calculateLevelAspectRatio(cards),
-      cards,
-    });
+    levels.push(level);
+    options?.onLevel?.(level);
   }
 
   return levels;
+}
+
+async function loadLevel(levelId: string, levelIndex: number): Promise<DiscoveredLevel | null> {
+  const firstCard = await findFirstCard(levelId);
+
+  if (!firstCard) {
+    return null;
+  }
+
+  const cards: RuntimeCard[] = [];
+
+  for (let cardIndex = 1; cardIndex <= maxCards; cardIndex += 1) {
+    const imageUrl = makeCardUrl(levelId, cardIndex, firstCard.filenameWidth);
+    const imageInfo = cardIndex === 1 ? firstCard.imageInfo : await loadImageInfo(imageUrl);
+
+    if (!imageInfo) {
+      break;
+    }
+
+    cards.push({
+      id: formatNumber(cardIndex),
+      order: cardIndex,
+      imageUrl,
+      width: imageInfo.width,
+      height: imageInfo.height,
+    });
+  }
+
+  return {
+    id: levelId,
+    title: `Уровень ${levelIndex}`,
+    previewUrl: firstCard.imageUrl,
+    aspectRatio: calculateLevelAspectRatio(cards),
+    cards,
+  };
+}
+
+async function findAdjacentLevels(levelId: string) {
+  const levelNumber = parseLevelNumber(levelId);
+  const previousLevelId = levelNumber > 1 ? formatNumber(levelNumber - 1) : null;
+  const nextLevelId = formatNumber(levelNumber + 1);
+
+  const [hasPreviousLevel, hasNextLevel] = await Promise.all([
+    previousLevelId ? hasLevel(previousLevelId) : Promise.resolve(false),
+    hasLevel(nextLevelId),
+  ]);
+
+  return {
+    previousLevelId: hasPreviousLevel ? previousLevelId : null,
+    nextLevelId: hasNextLevel ? nextLevelId : null,
+  };
+}
+
+async function hasLevel(levelId: string) {
+  return Boolean(await findFirstCard(levelId));
 }
 
 function OrderCardsPlay({
@@ -76,8 +107,9 @@ function OrderCardsPlay({
   onOpenLevel: (levelId: string) => void;
 }) {
   const [level, setLevel] = useState<DiscoveredLevel | null>(null);
-  const [levels, setLevels] = useState<DiscoveredLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [previousLevelId, setPreviousLevelId] = useState<string | null>(null);
+  const [nextLevelId, setNextLevelId] = useState<string | null>(null);
   const [selected, setSelected] = useState<RuntimeCard[]>([]);
   const [shakeCardId, setShakeCardId] = useState<string | null>(null);
   const [message, setMessage] = useState('Найди первую картинку.');
@@ -90,22 +122,35 @@ function OrderCardsPlay({
   const pendingLayoutAnimation = useRef<Record<string, Box>>({});
   const pendingChoiceRowHeight = useRef<number | null>(null);
   const moveTimer = useRef<number | null>(null);
+  const isPreparingMove = useRef(false);
 
   useEffect(() => {
     let alive = true;
 
     setIsLoading(true);
-    discoverLevels().then((levels) => {
+    setLevel(null);
+    setPreviousLevelId(null);
+    setNextLevelId(null);
+    setSelected([]);
+    setMovingCard(null);
+    setMessage('Найди первую картинку.');
+
+    loadLevel(levelId, parseLevelNumber(levelId)).then((item) => {
       if (!alive) {
         return;
       }
 
-      setLevels(levels);
-      setLevel(levels.find((item) => item.id === levelId) ?? null);
-      setSelected([]);
-      setMovingCard(null);
-      setMessage('Найди первую картинку.');
+      setLevel(item);
       setIsLoading(false);
+    });
+
+    findAdjacentLevels(levelId).then((adjacent) => {
+      if (!alive) {
+        return;
+      }
+
+      setPreviousLevelId(adjacent.previousLevelId);
+      setNextLevelId(adjacent.nextLevelId);
     });
 
     return () => {
@@ -127,10 +172,6 @@ function OrderCardsPlay({
   const selectedIds = new Set(selected.map((card) => card.id));
   const remainingCards = shuffledCards.filter((card) => !selectedIds.has(card.id));
   const isComplete = level ? selected.length === level.cards.length : false;
-  const currentLevelIndex = levels.findIndex((item) => item.id === levelId);
-  const previousLevel = currentLevelIndex > 0 ? levels[currentLevelIndex - 1] : null;
-  const nextLevel =
-    currentLevelIndex >= 0 && currentLevelIndex < levels.length - 1 ? levels[currentLevelIndex + 1] : null;
   const canZoomOut = zoom > 0.9;
   const canZoomIn = zoom < 1.6;
 
@@ -196,8 +237,8 @@ function OrderCardsPlay({
     setGameZoom(game.id, nextZoom);
   };
 
-  const onCardClick = (card: RuntimeCard) => {
-    if (!level || isComplete || movingCard) {
+  const onCardClick = async (card: RuntimeCard) => {
+    if (!level || isComplete || movingCard || isPreparingMove.current) {
       return;
     }
 
@@ -214,6 +255,7 @@ function OrderCardsPlay({
     const sourceRect = sourceRefs.current[card.id]?.getBoundingClientRect();
     const targetRect = slotRefs.current[card.id]?.getBoundingClientRect();
     const willCompleteLevel = selected.length + 1 === level.cards.length;
+    const sourceImage = sourceRefs.current[card.id]?.querySelector('img') ?? null;
     const finishMove = () => {
       pendingLayoutAnimation.current = captureRemainingCardRects(card.id);
       pendingChoiceRowHeight.current = choiceRowRef.current?.getBoundingClientRect().height ?? null;
@@ -230,6 +272,9 @@ function OrderCardsPlay({
       setMessage(`Отлично. Теперь найди картинку номер ${nextSelected.length + 1}.`);
     };
 
+    isPreparingMove.current = true;
+    await decodeMovingImage(sourceImage, card.imageUrl);
+
     if (willCompleteLevel) {
       playLevelCompleteSound();
     } else {
@@ -237,6 +282,7 @@ function OrderCardsPlay({
     }
 
     if (!sourceRect || !targetRect) {
+      isPreparingMove.current = false;
       finishMove();
       return;
     }
@@ -248,6 +294,7 @@ function OrderCardsPlay({
       to: rectToBox(targetRect),
     });
 
+    isPreparingMove.current = false;
     moveTimer.current = window.setTimeout(finishMove, 360);
   };
 
@@ -281,8 +328,8 @@ function OrderCardsPlay({
           <button
             class="icon-button"
             type="button"
-            disabled={!previousLevel}
-            onClick={() => previousLevel && onOpenLevel(previousLevel.id)}
+            disabled={!previousLevelId}
+            onClick={() => previousLevelId && onOpenLevel(previousLevelId)}
             aria-label="Предыдущий уровень"
             title="Предыдущий уровень"
           >
@@ -318,8 +365,8 @@ function OrderCardsPlay({
           <button
             class="icon-button"
             type="button"
-            disabled={!nextLevel}
-            onClick={() => nextLevel && onOpenLevel(nextLevel.id)}
+            disabled={!nextLevelId}
+            onClick={() => nextLevelId && onOpenLevel(nextLevelId)}
             aria-label="Следующий уровень"
             title="Следующий уровень"
           >
@@ -512,6 +559,11 @@ function formatNumber(value: number, width = 4) {
   return value.toString().padStart(width, '0');
 }
 
+function parseLevelNumber(levelId: string) {
+  const parsed = Number.parseInt(levelId, 10);
+  return Number.isFinite(parsed) ? parsed : 1;
+}
+
 function shuffleCards(cards: RuntimeCard[], seed: string) {
   const next = [...cards];
   let state = hashString(seed);
@@ -557,4 +609,20 @@ function rectToBox(rect: DOMRect): Box {
     width: rect.width,
     height: rect.height,
   };
+}
+
+async function decodeMovingImage(sourceImage: HTMLImageElement | null, imageUrl: string) {
+  const image = sourceImage ?? new Image();
+
+  if (!sourceImage) {
+    image.src = imageUrl;
+  }
+
+  if ('decode' in image) {
+    try {
+      await image.decode();
+    } catch {
+      // If decode is unavailable for this file, let the browser paint it normally.
+    }
+  }
 }

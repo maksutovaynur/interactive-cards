@@ -443,7 +443,7 @@ h1 {
   z-index: 20;
   border: 3px solid #ffffff;
   border-radius: 8px;
-  background: #ffffff;
+  background: transparent;
   box-shadow: 0 18px 34px rgba(31, 44, 47, 0.24);
   pointer-events: none;
   animation: card-move 360ms cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
@@ -455,7 +455,7 @@ h1 {
   height: 100%;
   border-radius: 6px;
   object-fit: contain;
-  background: #ffffff;
+  background: transparent;
 }
 
 @keyframes card-move {

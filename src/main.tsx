@@ -97,8 +97,15 @@ function LevelsPage({
     let alive = true;
 
     setIsLoading(true);
+    setLevels([]);
     game
-      .discoverLevels()
+      .discoverLevels({
+        onLevel: (level) => {
+          if (alive) {
+            setLevels((current) => [...current, level]);
+          }
+        },
+      })
       .then((items) => {
         if (alive) {
           setLevels(items);
