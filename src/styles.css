@@ -383,8 +383,8 @@ h1 {
 
 .picture-card,
 .card-slot {
-  flex: 0 0 clamp(150px, calc(19vw * var(--game-zoom)), calc(220px * var(--game-zoom)));
-  width: clamp(150px, calc(19vw * var(--game-zoom)), calc(220px * var(--game-zoom)));
+  flex: 0 0 clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
+  width: clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
   aspect-ratio: 4 / 3;
   border-radius: 8px;
 }

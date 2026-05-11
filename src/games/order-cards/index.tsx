@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { makeRuntimeAssetUrl, probeImage } from '../../runtimeAssets';
 import { clampZoom, getGameZoom, markLevelCompleted, setGameZoom } from '../../storage';
 import type { DiscoveredLevel, GamePlugin, RuntimeCard } from '../../types';
@@ -82,6 +82,9 @@ function OrderCardsPlay({
   const [zoom, setZoom] = useState(() => getGameZoom(gameId));
   const sourceRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const slotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const choiceRowRef = useRef<HTMLDivElement | null>(null);
+  const pendingLayoutAnimation = useRef<Record<string, Box>>({});
+  const pendingChoiceRowHeight = useRef<number | null>(null);
   const moveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -127,6 +130,62 @@ function OrderCardsPlay({
   const canZoomOut = zoom > 0.9;
   const canZoomIn = zoom < 1.6;
 
+  useLayoutEffect(() => {
+    const previousRects = pendingLayoutAnimation.current;
+    pendingLayoutAnimation.current = {};
+
+    Object.entries(previousRects).forEach(([cardId, previousRect]) => {
+      const element = sourceRefs.current[cardId];
+
+      if (!element) {
+        return;
+      }
+
+      const nextRect = element.getBoundingClientRect();
+      const deltaX = previousRect.left - nextRect.left;
+      const deltaY = previousRect.top - nextRect.top;
+
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+        return;
+      }
+
+      element.animate(
+        [
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: 'translate(0, 0)' },
+        ],
+        {
+          duration: 260,
+          easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)',
+        },
+      );
+    });
+
+    const previousHeight = pendingChoiceRowHeight.current;
+    pendingChoiceRowHeight.current = null;
+
+    if (previousHeight !== null) {
+      const row = choiceRowRef.current;
+
+      if (row) {
+        const nextHeight = row.getBoundingClientRect().height;
+
+        if (Math.abs(previousHeight - nextHeight) >= 1) {
+          row.animate(
+            [
+              { minHeight: `${previousHeight}px` },
+              { minHeight: `${nextHeight}px` },
+            ],
+            {
+              duration: 260,
+              easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)',
+            },
+          );
+        }
+      }
+    }
+  }, [selected]);
+
   const changeZoom = (delta: number) => {
     const nextZoom = clampZoom(zoom + delta);
     setZoom(nextZoom);
@@ -150,6 +209,8 @@ function OrderCardsPlay({
     const sourceRect = sourceRefs.current[card.id]?.getBoundingClientRect();
     const targetRect = slotRefs.current[card.id]?.getBoundingClientRect();
     const finishMove = () => {
+      pendingLayoutAnimation.current = captureRemainingCardRects(card.id);
+      pendingChoiceRowHeight.current = choiceRowRef.current?.getBoundingClientRect().height ?? null;
       const nextSelected = [...selected, card].sort((left, right) => left.order - right.order);
       setSelected(nextSelected);
       setMovingCard(null);
@@ -176,6 +237,22 @@ function OrderCardsPlay({
     });
 
     moveTimer.current = window.setTimeout(finishMove, 360);
+  };
+
+  const captureRemainingCardRects = (removedCardId: string) => {
+    return remainingCards.reduce<Record<string, Box>>((rects, remainingCard) => {
+      if (remainingCard.id === removedCardId) {
+        return rects;
+      }
+
+      const element = sourceRefs.current[remainingCard.id];
+
+      if (element) {
+        rects[remainingCard.id] = rectToBox(element.getBoundingClientRect());
+      }
+
+      return rects;
+    }, {});
   };
 
   return (
@@ -269,7 +346,7 @@ function OrderCardsPlay({
           </div>
 
           {!isComplete ? (
-            <div class="card-row" aria-label="Картинки для выбора">
+            <div class="card-row" ref={choiceRowRef} aria-label="Картинки для выбора">
               {remainingCards.map((card) => (
                 <CardButton
                   card={card}
