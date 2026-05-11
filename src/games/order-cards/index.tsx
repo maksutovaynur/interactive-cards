@@ -8,6 +8,7 @@ const gameId = 'order-cards';
 const levelsRoot = 'games/order-cards/levels';
 const maxLevels = 9999;
 const maxCards = 99;
+const cardFilenameWidths = [1, 2, 3, 4];
 
 export const orderCardsGame: GamePlugin = {
   id: gameId,
@@ -26,18 +27,17 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
 
   for (let levelIndex = 1; levelIndex <= maxLevels; levelIndex += 1) {
     const levelId = formatNumber(levelIndex);
-    const firstCardUrl = makeCardUrl(levelId, 1);
-    const firstCardInfo = await loadImageInfo(firstCardUrl);
+    const firstCard = await findFirstCard(levelId);
 
-    if (!firstCardInfo) {
+    if (!firstCard) {
       break;
     }
 
     const cards: RuntimeCard[] = [];
 
     for (let cardIndex = 1; cardIndex <= maxCards; cardIndex += 1) {
-      const imageUrl = makeCardUrl(levelId, cardIndex);
-      const imageInfo = cardIndex === 1 ? firstCardInfo : await loadImageInfo(imageUrl);
+      const imageUrl = makeCardUrl(levelId, cardIndex, firstCard.filenameWidth);
+      const imageInfo = cardIndex === 1 ? firstCard.imageInfo : await loadImageInfo(imageUrl);
 
       if (!imageInfo) {
         break;
@@ -55,7 +55,7 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
     levels.push({
       id: levelId,
       title: `Уровень ${levelIndex}`,
-      previewUrl: firstCardUrl,
+      previewUrl: firstCard.imageUrl,
       aspectRatio: calculateLevelAspectRatio(cards),
       cards,
     });
@@ -474,8 +474,25 @@ function MovingCardOverlay({ card }: { card: MovingCard }) {
   );
 }
 
-function makeCardUrl(levelId: string, cardIndex: number) {
-  return makeRuntimeAssetUrl(`${levelsRoot}/${levelId}/${formatNumber(cardIndex)}.jpg`);
+async function findFirstCard(levelId: string) {
+  for (const filenameWidth of cardFilenameWidths) {
+    const imageUrl = makeCardUrl(levelId, 1, filenameWidth);
+    const imageInfo = await loadImageInfo(imageUrl);
+
+    if (imageInfo) {
+      return {
+        filenameWidth,
+        imageUrl,
+        imageInfo,
+      };
+    }
+  }
+
+  return null;
+}
+
+function makeCardUrl(levelId: string, cardIndex: number, filenameWidth: number) {
+  return makeRuntimeAssetUrl(`${levelsRoot}/${levelId}/${formatNumber(cardIndex, filenameWidth)}.jpg`);
 }
 
 function calculateLevelAspectRatio(cards: RuntimeCard[]) {
@@ -491,8 +508,8 @@ function calculateLevelAspectRatio(cards: RuntimeCard[]) {
   return Math.min(Math.max(averageRatio, 0.55), 2.2);
 }
 
-function formatNumber(value: number) {
-  return value.toString().padStart(4, '0');
+function formatNumber(value: number, width = 4) {
+  return value.toString().padStart(width, '0');
 }
 
 function shuffleCards(cards: RuntimeCard[], seed: string) {
