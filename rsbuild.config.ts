@@ -20,7 +20,7 @@ export default defineConfig({
   output: {
     assetPrefix: './',
     distPath: {
-      root: target === 'github' ? 'github_build' : 'standalone_build',
+      root: target === 'github' ? 'docs' : 'standalone_build',
     },
   },
 });

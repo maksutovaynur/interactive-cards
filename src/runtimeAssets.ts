@@ -14,3 +14,22 @@ export function probeImage(url: string) {
     image.src = url;
   });
 }
+
+export function loadImageInfo(url: string) {
+  return new Promise<ImageInfo | null>((resolve) => {
+    const image = new Image();
+
+    image.onload = () =>
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+    image.onerror = () => resolve(null);
+    image.src = url;
+  });
+}
+
+export type ImageInfo = {
+  width: number;
+  height: number;
+};

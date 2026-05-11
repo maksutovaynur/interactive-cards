@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { makeRuntimeAssetUrl, probeImage } from '../../runtimeAssets';
+import { loadImageInfo, makeRuntimeAssetUrl } from '../../runtimeAssets';
 import { clampZoom, getGameZoom, markLevelCompleted, setGameZoom } from '../../storage';
 import type { DiscoveredLevel, GamePlugin, RuntimeCard } from '../../types';
+import { playFailedStepSound, playLevelCompleteSound, playSuccessStepSound } from './sounds';
 
 const gameId = 'order-cards';
 const levelsRoot = 'games/order-cards/levels';
@@ -26,9 +27,9 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
   for (let levelIndex = 1; levelIndex <= maxLevels; levelIndex += 1) {
     const levelId = formatNumber(levelIndex);
     const firstCardUrl = makeCardUrl(levelId, 1);
-    const exists = await probeImage(firstCardUrl);
+    const firstCardInfo = await loadImageInfo(firstCardUrl);
 
-    if (!exists) {
+    if (!firstCardInfo) {
       break;
     }
 
@@ -36,9 +37,9 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
 
     for (let cardIndex = 1; cardIndex <= maxCards; cardIndex += 1) {
       const imageUrl = makeCardUrl(levelId, cardIndex);
-      const cardExists = cardIndex === 1 ? true : await probeImage(imageUrl);
+      const imageInfo = cardIndex === 1 ? firstCardInfo : await loadImageInfo(imageUrl);
 
-      if (!cardExists) {
+      if (!imageInfo) {
         break;
       }
 
@@ -46,6 +47,8 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
         id: formatNumber(cardIndex),
         order: cardIndex,
         imageUrl,
+        width: imageInfo.width,
+        height: imageInfo.height,
       });
     }
 
@@ -53,6 +56,7 @@ async function discoverLevels(): Promise<DiscoveredLevel[]> {
       id: levelId,
       title: `Уровень ${levelIndex}`,
       previewUrl: firstCardUrl,
+      aspectRatio: calculateLevelAspectRatio(cards),
       cards,
     });
   }
@@ -200,6 +204,7 @@ function OrderCardsPlay({
     const expectedOrder = selected.length + 1;
 
     if (card.order !== expectedOrder) {
+      playFailedStepSound();
       setShakeCardId(card.id);
       setMessage('Почти! Эта картинка пока прыгает обратно.');
       window.setTimeout(() => setShakeCardId(null), 520);
@@ -208,6 +213,7 @@ function OrderCardsPlay({
 
     const sourceRect = sourceRefs.current[card.id]?.getBoundingClientRect();
     const targetRect = slotRefs.current[card.id]?.getBoundingClientRect();
+    const willCompleteLevel = selected.length + 1 === level.cards.length;
     const finishMove = () => {
       pendingLayoutAnimation.current = captureRemainingCardRects(card.id);
       pendingChoiceRowHeight.current = choiceRowRef.current?.getBoundingClientRect().height ?? null;
@@ -223,6 +229,12 @@ function OrderCardsPlay({
 
       setMessage(`Отлично. Теперь найди картинку номер ${nextSelected.length + 1}.`);
     };
+
+    if (willCompleteLevel) {
+      playLevelCompleteSound();
+    } else {
+      playSuccessStepSound();
+    }
 
     if (!sourceRect || !targetRect) {
       finishMove();
@@ -321,7 +333,11 @@ function OrderCardsPlay({
       {!isLoading && !level ? <p class="state-text">Уровень не найден.</p> : null}
 
       {level ? (
-        <section class={`task-board ${isComplete ? 'celebrating' : ''}`} style={{ '--game-zoom': String(zoom) }} aria-live="polite">
+        <section
+          class={`task-board ${isComplete ? 'celebrating' : ''}`}
+          style={{ '--game-zoom': String(zoom), '--card-aspect-ratio': String(level.aspectRatio) }}
+          aria-live="polite"
+        >
           {isComplete ? <Celebration /> : null}
           <div class={`message-strip ${isComplete ? 'complete' : ''}`}>{message}</div>
 
@@ -460,6 +476,19 @@ function MovingCardOverlay({ card }: { card: MovingCard }) {
 
 function makeCardUrl(levelId: string, cardIndex: number) {
   return makeRuntimeAssetUrl(`${levelsRoot}/${levelId}/${formatNumber(cardIndex)}.jpg`);
+}
+
+function calculateLevelAspectRatio(cards: RuntimeCard[]) {
+  if (!cards.length) {
+    return 4 / 3;
+  }
+
+  const averageRatio =
+    cards.reduce((total, card) => {
+      return total + card.width / card.height;
+    }, 0) / cards.length;
+
+  return Math.min(Math.max(averageRatio, 0.55), 2.2);
 }
 
 function formatNumber(value: number) {

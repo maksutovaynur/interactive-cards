@@ -223,10 +223,9 @@ h1 {
 
 .level-tile img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
-  background: #dfe8e4;
+  background: #f7fbf9;
 }
 
 .level-status {
@@ -266,6 +265,7 @@ h1 {
   justify-items: center;
   gap: 20px;
   --game-zoom: 1.15;
+  --card-aspect-ratio: 1.333;
 }
 
 .task-board.celebrating {
@@ -385,7 +385,7 @@ h1 {
 .card-slot {
   flex: 0 0 clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
   width: clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
-  aspect-ratio: 4 / 3;
+  aspect-ratio: var(--card-aspect-ratio);
   border-radius: 8px;
 }
 
@@ -420,7 +420,8 @@ h1 {
   width: 100%;
   height: 100%;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #ffffff;
   user-select: none;
 }
 
@@ -453,7 +454,8 @@ h1 {
   width: 100%;
   height: 100%;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #ffffff;
 }
 
 @keyframes card-move {

@@ -142,7 +142,7 @@ function LevelsPage({
 
           return (
             <button class={`level-tile ${status}`} type="button" onClick={() => onOpenLevel(level.id)} key={level.id}>
-              <img src={level.previewUrl} alt="" />
+              <img src={level.previewUrl} alt="" style={{ aspectRatio: String(level.aspectRatio) }} />
               <span class="level-number">Уровень {index + 1}</span>
               <span class="level-count">{level.cards.length} картинок</span>
               <span class="level-status">{statusLabel}</span>

@@ -6,12 +6,15 @@ export type RuntimeCard = {
   id: string;
   order: number;
   imageUrl: string;
+  width: number;
+  height: number;
 };
 
 export type DiscoveredLevel = {
   id: string;
   title: string;
   previewUrl: string;
+  aspectRatio: number;
   cards: RuntimeCard[];
 };
 

@@ -10,7 +10,7 @@ npm run build:github
 npm run build:standalone
 ```
 
-- `github_build/` is the GitHub Pages output.
+- `docs/` is the GitHub Pages output.
 - `standalone_build/` is ignored by git and can be opened directly from disk with `index.html`.
 - Runtime code and assets are local; the built app does not need internet access.
 
