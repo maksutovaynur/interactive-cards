@@ -346,6 +346,16 @@ h1 {
   color: #255b33;
 }
 
+.rows-layout {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+}
+
 .card-row {
   position: relative;
   z-index: 2;
@@ -353,7 +363,6 @@ h1 {
   flex-wrap: wrap;
   width: fit-content;
   max-width: 100%;
-  min-height: calc(186px * var(--game-zoom));
   align-items: center;
   justify-content: center;
   gap: calc(12px * var(--game-zoom));
@@ -362,6 +371,11 @@ h1 {
   border: 2px dashed #9eb8b8;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.6);
+}
+
+.answer-row {
+  flex-wrap: nowrap;
+  overflow-x: visible;
 }
 
 .celebration-layer {
@@ -436,10 +450,31 @@ h1 {
   background: rgba(230, 245, 223, 0.74);
 }
 
+@media (max-width: 899px) {
+  .rows-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    justify-content: center;
+  }
+
+  .answer-row,
+  .choice-row {
+    align-items: center;
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+}
+
+@media (max-width: 559px) {
+  .rows-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .picture-card,
 .card-slot {
-  flex: 0 0 clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
-  width: clamp(180px, calc(19vw * var(--game-zoom)), calc(264px * var(--game-zoom)));
+  flex: 0 0 clamp(210px, calc(19vw * var(--game-zoom)), calc(288px * var(--game-zoom)));
+  width: clamp(210px, calc(19vw * var(--game-zoom)), calc(288px * var(--game-zoom)));
   aspect-ratio: var(--card-aspect-ratio);
   border-radius: 8px;
 }
@@ -638,7 +673,6 @@ h1 {
   }
 
   .card-row {
-    min-height: calc(154px * var(--game-zoom));
     padding: calc(10px * var(--game-zoom));
   }
 }

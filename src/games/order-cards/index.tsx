@@ -432,42 +432,44 @@ function OrderCardsPlay({
           {isComplete ? <Celebration /> : null}
           <div class={`message-strip ${isComplete ? 'complete' : ''}`}>{message}</div>
 
-          <div class="card-row answer-row" aria-label="Правильный ряд">
-            {level.cards.map((card, index) => {
-              const placed = selected.find((item) => item.id === card.id);
+          <div class="rows-layout">
+            <div class="card-row answer-row" aria-label="Правильный ряд">
+              {level.cards.map((card, index) => {
+                const placed = selected.find((item) => item.id === card.id);
 
-              return placed ? (
-                <CardButton card={placed} disabled key={card.id} />
-              ) : (
-                <div
-                  class="card-slot"
-                  ref={(node) => {
-                    slotRefs.current[card.id] = node;
-                  }}
-                  key={card.id}
-                >
-                  {index + 1}
-                </div>
-              );
-            })}
-          </div>
-
-          {!isComplete ? (
-            <div class="card-row" ref={choiceRowRef} aria-label="Картинки для выбора">
-              {remainingCards.map((card) => (
-                <CardButton
-                  card={card}
-                  isShaking={shakeCardId === card.id}
-                  isMoving={movingCard?.id === card.id}
-                  onClick={() => onCardClick(card)}
-                  setRef={(node) => {
-                    sourceRefs.current[card.id] = node;
-                  }}
-                  key={card.id}
-                />
-              ))}
+                return placed ? (
+                  <CardButton card={placed} disabled key={card.id} />
+                ) : (
+                  <div
+                    class="card-slot"
+                    ref={(node) => {
+                      slotRefs.current[card.id] = node;
+                    }}
+                    key={card.id}
+                  >
+                    {index + 1}
+                  </div>
+                );
+              })}
             </div>
-          ) : null}
+
+            {!isComplete ? (
+              <div class="card-row choice-row" ref={choiceRowRef} aria-label="Картинки для выбора">
+                {remainingCards.map((card) => (
+                  <CardButton
+                    card={card}
+                    isShaking={shakeCardId === card.id}
+                    isMoving={movingCard?.id === card.id}
+                    onClick={() => onCardClick(card)}
+                    setRef={(node) => {
+                      sourceRefs.current[card.id] = node;
+                    }}
+                    key={card.id}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           {movingCard ? <MovingCardOverlay card={movingCard} /> : null}
         </section>
